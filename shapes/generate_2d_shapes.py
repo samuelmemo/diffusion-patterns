@@ -1,22 +1,28 @@
 import torch 
-import torchvision 
 import matplotlib.pyplot as plt
 import numpy as np 
 
 
-def generate_line(x_range, step_size): 
-    m = 2
-    b = 1
+def generate_line(m, b, x_range, step_size): 
     point_count = (x_range // step_size) + 1
     points = np.empty([point_count,2])
 
     i=0
-
     for x in range(0, x_range+1, step_size):
         y = m*x +b
         points[i,:] = [x,y]
         i+= 1
     return points
+
+def generate_spiral(a,b,lenght): 
+    #the "lenght" parameter increases the size of the spiral
+    spiral_coords = []
+    for theta in np.arange(0,lenght*np.pi,0.1):
+        r = a*np.exp(b*theta)
+        x = r*np.cos(theta)
+        y = r*np.sin(theta)
+        spiral_coords.append([x,y])
+    return np.array(spiral_coords)
 
 def print_figure(points): 
     fig, ax = plt.subplots() 
@@ -33,9 +39,8 @@ def print_figure(points):
 
 
 def main():
-    points = generate_line(200, 10)
-    print(points)
-    print_figure(points)
+    spiral_coords = generate_spiral(2, 0.1, 10)
+    print_figure(spiral_coords)
 
 
 if __name__ == "__main__": 

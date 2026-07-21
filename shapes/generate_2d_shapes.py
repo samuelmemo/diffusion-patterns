@@ -39,8 +39,12 @@ def print_figure(points):
 
 
 def main():
-    spiral_coords = generate_spiral(2, 0.1, 10)
-    print_figure(spiral_coords)
+    #Generate the golden spiral 
+    phi = (1 + np.sqrt(5)) /2
+    a = 1e-42
+    b = 2 * np.log(phi) / np.pi
+    sp_points = generate_spiral(a,b,100)
+    print_figure(sp_points)
 
 
 if __name__ == "__main__": 

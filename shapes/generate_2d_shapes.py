@@ -45,27 +45,6 @@ def generate_single_gaussian(n_points, mean=(0, 0), std=1.0, seed=None):
     return rng.normal(loc=mean, scale=std, size=(n_points, 2))
 
 
-def generate_two_gaussian_clusters(
-    n_points,
-    centers=((-2, 0), (2, 0)),
-    std=0.5,
-    seed=None,
-):
-    """Generate two separate Gaussian clouds around the given ``centers``.
-
-    ``std`` controls the spread within both clusters. The points are shuffled
-    so their array order does not reveal which cluster they came from.
-    """
-    rng = np.random.default_rng(seed)
-    first_count = n_points // 2
-    second_count = n_points - first_count
-
-    first_cluster = rng.normal(centers[0], std, size=(first_count, 2))
-    second_cluster = rng.normal(centers[1], std, size=(second_count, 2))
-    points = np.vstack((first_cluster, second_cluster))
-    rng.shuffle(points)
-    return points
-
 
 def generate_circle(n_points, radius=1.0, noise_std=0.05, seed=None):
     """Generate evenly spaced points around a circle.

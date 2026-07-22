@@ -1,12 +1,11 @@
 import torch 
 from torch.utils.data import TensorDataset, DataLoader
-from generate_2d_shapes import generate_circle
-from generate_2d_shapes import plot_figure
+from shapes.generate_2d_shapes import generate_circle, plot_figure, generate_spiral
 
 def generate_dataset():
     points = generate_circle(n_points=1000,
-                             radius=1.0,
-                              noise_std=0.01,
+                              radius=1.0,
+                              noise_std=0.001,
                               seed=42)
     points_tensor = torch.tensor(points, dtype=torch.float32)
     mean = points_tensor.mean(dim=0)

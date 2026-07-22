@@ -1,6 +1,6 @@
 import torch
 from matplotlib import pyplot as plt 
-from generate_dataset import generate_dataset
+from shapes.generate_dataset import generate_dataset
 
 
 #Detect device
@@ -53,12 +53,16 @@ class Diffusion:
 
 def main():
 
+    #Plot the original figure along with 5 different noisy shapes corresponding to different timesteps
     data = generate_dataset()
     points = data["dataset"].tensors[0]
 
     diffusion = Diffusion()
 
-    for t in [0, 50, 200, 500, 999]:
+    timesteps_to_plot = [0, 50, 200, 500, 750, 999]
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+
+    for ax, t in zip(axes.flat, timesteps_to_plot):
         timesteps = torch.full(
             (points.shape[0],),
             t,
@@ -73,13 +77,16 @@ def main():
 
         noisy_points = noisy_points.cpu().numpy()
 
-        plt.figure()
-        plt.scatter(noisy_points[:, 0], noisy_points[:, 1], s=5)
-        plt.title(f"Timestep {t}")
-        plt.axis("equal")
-        plt.xlim(-4, 4)
-        plt.ylim(-4, 4)
-        plt.show()
+        ax.scatter(noisy_points[:, 0], noisy_points[:, 1], s=5)
+        ax.set_title(f"Timestep {t}")
+        ax.set_aspect("equal")
+        ax.set_xlim(-4, 4)
+        ax.set_ylim(-4, 4)
+        ax.grid(True, linestyle="--", alpha=0.3)
+
+    fig.suptitle("Forward Diffusion Process", fontsize=16)
+    fig.tight_layout()
+    plt.show()
     
 
 if __name__ == "__main__":
@@ -87,6 +94,5 @@ if __name__ == "__main__":
 
 
         
-
 
 

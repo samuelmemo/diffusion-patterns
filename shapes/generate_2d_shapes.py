@@ -127,7 +127,7 @@ def generate_two_moons(n_points, noise_std=0.05, seed=None):
     return points
 
 
-def print_figure(points): 
+def plot_figure(points): 
     fig, ax = plt.subplots() 
     x = points[:,0]
     y = points[:,1]
@@ -149,8 +149,8 @@ def main():
     sp_points = generate_spiral(a,b,100)
     print_figure(sp_points)
     """
-    points = generate_circle(500, noise_std=0.01)
-    print_figure(points)
+    points = generate_circle(1000, noise_std=0.01)
+    plot_figure(points)
 
 
 if __name__ == "__main__": 

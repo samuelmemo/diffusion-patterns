@@ -2,6 +2,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import torch
+from matplotlib.animation import FuncAnimation, PillowWriter
 from tqdm import tqdm
 
 from diffusion_process.forward_diffusion import Diffusion
@@ -14,6 +15,7 @@ def sample_points(
     diffusion,
     n_points=1000,
     keyframe_timesteps=None,
+    animation_frame_interval=10,
 ):
     model.eval()
     device = diffusion.device
@@ -23,13 +25,16 @@ def sample_points(
         last_timestep = diffusion.noise_steps - 1
         keyframe_timesteps = (
             last_timestep,
-            round(last_timestep * 0.75),
-            round(last_timestep * 0.50),
             round(last_timestep * 0.20),
+            round(last_timestep * 0.05),
+            round(last_timestep * 0.02),
             0,
         )
 
     keyframes = {diffusion.noise_steps - 1: x.clone()}
+    animation_frames = [
+        (diffusion.noise_steps - 1, x.detach().cpu().clone())
+    ]
 
     for t in tqdm(
         reversed(range(1, diffusion.noise_steps)),
@@ -70,7 +75,15 @@ def sample_points(
         if current_timestep in keyframe_timesteps:
             keyframes[current_timestep] = x.clone()
 
-    return x, keyframes
+        if (
+            current_timestep % animation_frame_interval == 0
+            or current_timestep == 0
+        ):
+            animation_frames.append(
+                (current_timestep, x.detach().cpu().clone())
+            )
+
+    return x, keyframes, animation_frames
 
 
 def plot_denoising_process(original_points, keyframes, output_path):
@@ -78,7 +91,7 @@ def plot_denoising_process(original_points, keyframes, output_path):
     axes = axes.flatten()
 
     axes[0].scatter(original_points[:, 0], original_points[:, 1], s=5)
-    axes[0].set_title("Original circle")
+    axes[0].set_title("Original shape")
 
     for ax, timestep in zip(axes[1:], sorted(keyframes, reverse=True)):
         points = keyframes[timestep]
@@ -91,7 +104,7 @@ def plot_denoising_process(original_points, keyframes, output_path):
         ax.set_ylim(-2, 2)
         ax.grid(True, linestyle="--", alpha=0.3)
 
-    fig.suptitle("Circle Denoising Process", fontsize=16)
+    fig.suptitle("Shape Denoising Process", fontsize=16)
     fig.tight_layout()
 
     output_path = Path(output_path)
@@ -99,6 +112,38 @@ def plot_denoising_process(original_points, keyframes, output_path):
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     print(f"Saved denoising plot to {output_path}")
     plt.show()
+
+
+def save_denoising_gif(animation_frames, output_path, fps=20):
+    fig, ax = plt.subplots(figsize=(6, 6))
+    first_timestep, first_points = animation_frames[0]
+    scatter = ax.scatter(first_points[:, 0], first_points[:, 1], s=5)
+    title = ax.set_title(f"Reverse timestep {first_timestep}")
+
+    ax.set_aspect("equal")
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(-2, 2)
+    ax.grid(True, linestyle="--", alpha=0.3)
+
+    def update(frame):
+        timestep, points = frame
+        scatter.set_offsets(points)
+        title.set_text(f"Reverse timestep {timestep}")
+        return scatter, title
+
+    animation = FuncAnimation(
+        fig,
+        update,
+        frames=animation_frames,
+        interval=1000 / fps,
+        blit=False,
+    )
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    animation.save(output_path, writer=PillowWriter(fps=fps))
+    plt.close(fig)
+    print(f"Saved denoising GIF to {output_path}")
 
 
 def load_model(checkpoint_path):
@@ -132,7 +177,11 @@ def main():
         "models/circle_model.pt",
     )
 
-    generated_normalized, normalized_keyframes = sample_points(
+    (
+        generated_normalized,
+        normalized_keyframes,
+        normalized_animation_frames,
+    ) = sample_points(
         model,
         diffusion,
         n_points=1000,
@@ -145,6 +194,10 @@ def main():
         timestep: (points.cpu() * std + mean).numpy()
         for timestep, points in normalized_keyframes.items()
     }
+    animation_frames = [
+        (timestep, (points * std + mean).numpy())
+        for timestep, points in normalized_animation_frames
+    ]
 
     generated_radii = torch.linalg.vector_norm(generated_points, dim=1)
     print(f"Mean generated radius: {generated_radii.mean().item():.4f}")
@@ -154,10 +207,15 @@ def main():
         f"{torch.abs(generated_radii - 1.0).mean().item():.4f}"
     )
 
+    save_denoising_gif(
+        animation_frames,
+        "plots/shape_denoising_process.gif",
+    )
+
     plot_denoising_process(
         checkpoint["original_points"].numpy(),
         keyframes,
-        "plots/circle_denoising_process.png",
+        "plots/shape_denoising_process.png",
     )
 
 

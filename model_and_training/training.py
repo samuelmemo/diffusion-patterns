@@ -91,7 +91,7 @@ def save_model(model, diffusion, data, output_path):
 
 
 def main():
-    data = generate_dataset()
+    data = generate_dataset(shape="two_moons")
     diffusion = Diffusion()
     model = NoisePredictor(diffusion.noise_steps)
 

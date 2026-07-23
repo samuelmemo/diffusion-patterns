@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim 
 import torch.nn.functional as F 
 import matplotlib.pyplot as plt
+from pathlib import Path
 from shapes.generate_dataset import generate_dataset
 from diffusion_process.forward_diffusion import Diffusion
 from tqdm import tqdm
@@ -28,6 +29,8 @@ class NoisePredictor(nn.Module):
 
         self.model = nn.Sequential(
             nn.Linear(3, 128),
+            nn.SiLU(),
+            nn.Linear(128, 128),
             nn.SiLU(),
             nn.Linear(128, 128),
             nn.SiLU(),
@@ -92,10 +95,16 @@ def training_loop(model, diffusion, learning_rate, train_dataloader, n_epochs):
 
 
 @torch.no_grad()
-def sample_points(model, diffusion, n_points=1000):
+def sample_points(
+    model,
+    diffusion,
+    n_points=1000,
+    keyframe_timesteps=(999, 200, 50, 10, 0),
+):
     model.eval()
     device = diffusion.device
     x = torch.randn((n_points, 2), device=device)
+    keyframes = {diffusion.noise_steps - 1: x.clone()}
 
     for t in tqdm(
         reversed(range(1, diffusion.noise_steps)),
@@ -129,17 +138,24 @@ def sample_points(model, diffusion, n_points=1000):
         else:
             x = model_mean
 
-    return x
+        current_timestep = t - 1
+        if current_timestep in keyframe_timesteps:
+            keyframes[current_timestep] = x.clone()
+
+    return x, keyframes
 
 
-def plot_results(original_points, generated_points):
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+def plot_denoising_process(original_points, keyframes, output_path):
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+    axes = axes.flatten()
 
     axes[0].scatter(original_points[:, 0], original_points[:, 1], s=5)
     axes[0].set_title("Original circle")
 
-    axes[1].scatter(generated_points[:, 0], generated_points[:, 1], s=5)
-    axes[1].set_title("Generated circle")
+    for ax, timestep in zip(axes[1:], sorted(keyframes, reverse=True)):
+        points = keyframes[timestep]
+        ax.scatter(points[:, 0], points[:, 1], s=5)
+        ax.set_title(f"Reverse timestep {timestep}")
 
     for ax in axes:
         ax.set_aspect("equal")
@@ -147,7 +163,12 @@ def plot_results(original_points, generated_points):
         ax.set_ylim(-2, 2)
         ax.grid(True, linestyle="--", alpha=0.3)
 
+    fig.suptitle("Circle Denoising Process", fontsize=16)
     fig.tight_layout()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    print(f"Saved denoising plot to {output_path}")
     plt.show()
 
 
@@ -162,10 +183,10 @@ def main():
         diffusion,
         learning_rate=1e-3,
         train_dataloader=data["dataloader"],
-        n_epochs=200,
+        n_epochs=2000,
     )
 
-    generated_normalized = sample_points(
+    generated_normalized, normalized_keyframes = sample_points(
         model,
         diffusion,
         n_points=1000,
@@ -174,6 +195,12 @@ def main():
     generated_points = (
         generated_normalized.cpu() * data["std"] + data["mean"]
     )
+    keyframes = {
+        timestep: (
+            points.cpu() * data["std"] + data["mean"]
+        ).numpy()
+        for timestep, points in normalized_keyframes.items()
+    }
 
     generated_radii = torch.linalg.vector_norm(generated_points, dim=1)
     print(f"Mean generated radius: {generated_radii.mean().item():.4f}")
@@ -183,9 +210,10 @@ def main():
         f"{torch.abs(generated_radii - 1.0).mean().item():.4f}"
     )
 
-    plot_results(
+    plot_denoising_process(
         data["original_points"],
-        generated_points.numpy(),
+        keyframes,
+        "plots/circle_denoising_process.png",
     )
 
 

@@ -183,7 +183,7 @@ def main():
         diffusion,
         learning_rate=1e-3,
         train_dataloader=data["dataloader"],
-        n_epochs=5000,
+        n_epochs=2000,
     )
 
     generated_normalized, normalized_keyframes = sample_points(
